@@ -11,6 +11,9 @@ from rest_framework import status
 
 #helper functions
 CREATE_USER_URL = reverse('user:create')
+TOKEN_URL = reverse('user:token')
+ME_URL = reverse('user:me')
+
 
 def create_user(**params):
     """Create and return a new user."""
@@ -65,3 +68,86 @@ class PublicUserApiTests(TestCase):
             email=payload['email']
         ).exists()
         self.assertFalse(user_exists)
+
+    def test_create_token_for_user(self):
+        """Test generate token for valid credientials"""
+        user_details ={
+            'name': 'Test Name',
+            'email': 'test@example.com',
+            'password': 'test-user-password123'
+        }
+
+        create_user(**user_details)
+
+        payload={
+            'email': user_details['email'],
+            'password': user_details['password'],
+        }
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+
+    def test_create_token_bad_credentials(self):
+
+        """Test return error if credientials invalid"""
+        create_user(email='test@example.com', password='goodpass')
+
+        payload = {'email': 'test@example.com', 'password': 'badpass'}
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_token_blank_password(self):
+        """Test posting a black passowrd return an error"""
+        payload = {'email': 'test@example.com', 'password': '' }
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_retrieve_user_unauthorized(self):
+        """Test authentication is required for users"""
+        res = self.client.get(ME_URL)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+class privateUserApiTests(TestCase):
+    """Test API request that require authentication"""
+
+    def setUp(self):
+        self.user = create_user(
+            email='test@example.com',
+            password='testpass123',
+            name='Test Name'
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_retrieve_profile_success(self):
+        """Test retrieving profile for logged in user"""
+        res = self.client.get(ME_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, {
+            'name': self.user.name,
+            'email': self.user.email,
+        })
+
+    def test_post_me_not_allowed(self):
+        """Test POSt isnot allowed for the me endpoint"""
+        res = self.client.post(ME_URL, {})
+
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_user_profile(self):
+        """Test updating the ser profile for the authenticated user"""
+        payload = {'name': 'update name', 'password': 'newpassword123'}
+
+        res = self.client.patch(ME_URL, payload)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.name, payload['name'])
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
