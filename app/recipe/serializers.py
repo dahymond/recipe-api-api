@@ -3,8 +3,15 @@ Serializers for recipe Apis
 """
 
 from rest_framework import serializers
-from core.models import (Recipe, Tag)
+from core.models import (Recipe, Tag, Ingredient)
 
+
+class IngredientSerializer(serializers.ModelSerializer):
+    """Serializer for ingredient"""
+    class Meta:
+        model = Ingredient
+        fields = ['id', 'name']
+        read_only_fields = ['id']
 
 class TagSerializer(serializers.ModelSerializer):
     """Serializer fro Tags"""
@@ -17,6 +24,7 @@ class TagSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for recipes."""
     tags = TagSerializer(many=True, required=False)
+    ingredients = Ingredient
 
     class Meta:
         model = Recipe
@@ -25,7 +33,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def _get_or_create_tags(self, tags, recipe):
-        """Handle getting aor creating tags as needed"""
+        """Handle getting or creating tags as needed."""
         auth_user = self.context['request'].user
         for tag in tags:
             tag_obj, created = Tag.objects.get_or_create(
@@ -34,12 +42,24 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
             recipe.tags.add(tag_obj)
 
-    def create(self, validated_data):
-        """Create a recipe"""
-        tags = validated_data.pop('tags', [])
-        recipe = Recipe.objects.create(**validated_data)
+    def _get_or_create_ingredients(self, ingredients, recipe):
+        """Handle getting or creating ingredients as needed."""
         auth_user = self.context['request'].user
+        for ingredient in ingredients:
+            ingredient_obj, created = Ingredient.objects.get_or_create(
+                user=auth_user,
+                **ingredient,
+            )
+            recipe.ingredients.add(ingredient_obj)
+
+
+    def create(self, validated_data):
+        """Create a recipe."""
+        tags = validated_data.pop('tags', [])
+        ingredients = validated_data.pop('ingredients', [])
+        recipe = Recipe.objects.create(**validated_data)
         self._get_or_create_tags(tags, recipe)
+        self._get_or_create_ingredients(ingredients, recipe)
 
         return recipe
 
