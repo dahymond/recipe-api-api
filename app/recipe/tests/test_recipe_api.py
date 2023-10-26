@@ -417,13 +417,12 @@ class PrivateRecipeApiTests(TestCase):
         r2 = create_recipe(user=self.user, title='Chicken Cacciatore')
         in1 = Ingredient.objects.create(user=self.user, name='Feta Cheese')
         in2 = Ingredient.objects.create(user=self.user, name='Chicken')
-        r1.ingredient.add(in1)
-        r2.ingredient.add(in2)
+        r1.ingredients.add(in1)
+        r2.ingredients.add(in2)
         r3 = create_recipe(user=self.user, title='Red Lentil Daal')
 
         params = {'ingredients':f'{in1.id}, {in2.id}'}
         res = self.client.get(RECIPES_URL, params)
-
         s1 = RecipeSerializer(r1)
         s2 = RecipeSerializer(r2)
         s3 = RecipeSerializer(r3)
