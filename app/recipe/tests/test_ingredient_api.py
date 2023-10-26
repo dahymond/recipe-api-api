@@ -120,7 +120,7 @@ class PrivateIngredientApiTests(TestCase):
         ing = Ingredient.objects.create(user=self.user, name='Eggs')
         Ingredient.objects.create(user=self.user, name='Lentils')
         recipe1 = Recipe.objects.create(
-            title='Apple Crumble',
+            title='Apple Benedict',
             time_minutes=60,
             price=Decimal('7.00'),
             user=self.user,
@@ -134,5 +134,5 @@ class PrivateIngredientApiTests(TestCase):
         recipe1.ingredients.add(ing)
         recipe2.ingredients.add(ing)
 
-        res = self.client.get(INGREDIENTS_URL, {'assignd_only':1})
+        res = self.client.get(INGREDIENTS_URL, {'assigned_only':1})
         self.assertEqual(len(res.data), 1)
